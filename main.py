@@ -31,7 +31,7 @@ for i in G.nodes :
 #   print(u, v, prob)
 
 # Independent Cascade function
-def independent_cascade(G, seeds, ic_iter = 500) :
+def independent_cascade(G, seeds, ic_iter = 50) :
     """
     Input : Graph, seeds and number of Monte-Carlo simulations
     Output : Average number of nodes influenced by the seed nodes
