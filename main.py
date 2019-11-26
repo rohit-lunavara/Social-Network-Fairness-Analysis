@@ -117,4 +117,4 @@ def max_fair_alloc(G, k, mfa_iter = 1) :
     Output : Maximum fairness seed set, resulting spread, time for each iteration
     """
 
-    
+    pass
