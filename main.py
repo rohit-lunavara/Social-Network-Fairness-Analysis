@@ -7,11 +7,9 @@ import networkx as nx
 
 G = pickle.load(open('graph.pickle', 'rb'))
 
-#print(G.edges)
-
 # Setting the influence probability for connected individuals from the same regions to be 0.2 and 0.1 otherwise.
 for i in G.nodes :
-    for j in G.adj[i] :
+    for j in G.successors(i) :
         if G.nodes[i]['region'] == G.nodes[j]['region'] :
             G.edges[i, j]['infl_prob'] = 0.2
         else :
@@ -24,35 +22,28 @@ for i in G.nodes :
     if G.nodes[i]['region'] not in region_list :
         region_list.append(G.nodes[i]['region'])
 
-#print(region_list)
-
 # Obtaining total number of people in each region
 
 region_total = {}
 for i in G.nodes :
     region_total[G.nodes[i]['region']] = region_total.get(G.nodes[i]['region'], 0) + 1
 
-#print(region_total.items())
+# Task 1.1 - Implement Independent Cascade 
 
-# Same regions
-#print(G.nodes[0])
-#print(G.nodes[1])
-#print(G.edges[0, 1])
-
-# Different regions
-#print(G.nodes[481])
-#print(G.nodes[31])
-#print(G.edges[481, 31])
-
-# Printing edges with their probability
-#for (u, v, prob) in G.edges.data('infl_prob') :
-#   print(u, v, prob)
-
-# Task 1.1 - Independent Cascade function
 def independent_cascade(G, seeds, get_region_spread = True, ic_iter = 500) :
     """
-    Input : Graph, seeds and number of Monte-Carlo simulations
-    Output : Average number of nodes influenced by the seed nodes
+    Input : 
+        G - Graph upon which we perform the Independent Cascade
+            NetworkX Directed Graph object
+        seeds - The seeds which we use for Independent Cascade
+            List
+        get_region_spread - True by default, set to False if proportion of nodes influenced per region is not required
+            Boolean
+        ic_iter - Number of simulations, 500 by default, provide a higher value for greater accuracy
+            Integer
+    Output : 
+        Average number of nodes influenced by the seed nodes and 
+        Proportion of nodes influenced per region
     """
 
     # Loop over the number of iterations 
@@ -71,9 +62,7 @@ def independent_cascade(G, seeds, get_region_spread = True, ic_iter = 500) :
                 # Determine those neighbors that become infected
                 np.random.seed(i)
                 for node_neighbor in G.successors(node) :
-                    #print(node, node_neighbor, G.edges[node, node_neighbor]['infl_prob'])
                     success = np.random.uniform(0, 1) < G.edges[node, node_neighbor]['infl_prob']
-                    #print(success)
                     if success : new_ones.append(node_neighbor)
 
                 new_active = list(set(new_ones) - set(activated))
@@ -91,7 +80,6 @@ def independent_cascade(G, seeds, get_region_spread = True, ic_iter = 500) :
                 region_iter[G.nodes[i]['region']] = region_iter.get(G.nodes[i]['region'], 0) + 1
             for k, v in region_iter.copy().items() :
                 region_iter[k] = round(v / region_total[k], 4)
-            #print(region_iter, end = '\n\n')
             region_spread.append(region_iter)
 
         spread.append(len(activated))
@@ -106,19 +94,34 @@ def independent_cascade(G, seeds, get_region_spread = True, ic_iter = 500) :
                 region_mean[region] += (region_spread[i][region])
         for i in region_mean :
             region_mean[i] = round(region_mean[i] / ic_iter, 8)
-        #print(region_mean)
         return np.mean(spread), region_mean
     else :
         return np.mean(spread)
 
-#S = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-#mean_spread = independent_cascade(G, S)
+# Executing Independent Cascade function
+#seeds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+#mean_spread = independent_cascade(G, seeds, get_region_spread = False)
 #print(mean_spread)
 
-def greedy(G, k, ic_iter = 10) :
+# Task 1.2 - Implement Greedy algorithm
+
+def greedy(G, k, ic_iter = 500) :
     """
-    Input : Graph, number of seeds and number of Monte-Carlo simulations
-    Output : Optimal seed set, resulting spread, time for each iteration
+    Input : 
+        G - Graph upon which we perform the Greedy algorithm
+            NetworkX Directed Graph object
+        k - The number of seeds required
+            List
+        ic_iter - Number of simulations, 500 by default, provide a higher value for greater accuracy
+            Integer
+    Output : 
+        Optimal seed set
+        Average number of nodes influenced by the seed set for each iteration
+        Time for each iteration
+    Reference :
+        David Kempe, Jon Kleinberg, and Éva Tardos. 2003. Maximizing the spread of influence through a social network. In Proceedings of the ninth ACM SIGKDD international conference on Knowledge discovery and data mining (KDD '03). ACM, New York, NY, USA, 137-146. DOI=http://dx.doi.org/10.1145/956750.956769
+    Link :
+        https://www.cs.cornell.edu/home/kleinber/kdd03-inf.pdf
     """
 
     seeds, spread, timelapse, start_time = [], [], [], time.time()
@@ -131,7 +134,7 @@ def greedy(G, k, ic_iter = 10) :
         for j in (set(G.nodes) - set(seeds)) :
 
             # Get the spread
-            s = independent_cascade(G, seeds + [j], get_region_spread = True, ic_iter = ic_iter)
+            s = independent_cascade(G, seeds + [j], get_region_spread = False, ic_iter = ic_iter)
 
             # Update the winning node and spread so far
             if s > best_spread : best_spread, node = s, j
@@ -145,36 +148,57 @@ def greedy(G, k, ic_iter = 10) :
 
     return (seeds, spread, timelapse)
 
-# Task 1.2 - Compute Greedy algorithm output
+# Executing the Greedy algorithm
 
 #greedy_output = greedy(G, 25)
-
 #print('\nSeeds :', greedy_output[0], '\n')
 #print('\nSpread :', greedy_output[1], '\n')
 #print('\nTimelapse :', greedy_output[2], '\n')
 #print(greedy_output)
 
-# Task 1.3 - Compute proportion of people receiving information for each region averaged across 500 simulations.
+# Task 1.3 - Compute proportion of people receiving information for each region averaged across 500 simulations for your best seed set.
 
 #seeds = [19, 264, 17, 13, 265, 282, 263, 460, 18, 296, 26, 240, 155, 136, 266, 82, 30, 409, 12, 268, 424, 74, 313, 29, 399]
 #mean_spread, region_spread = independent_cascade(G, seeds)
+
+# View in command line
 #print(mean_spread)
+#print('Regions\t| Percentage of people in that region receiving the information', end = '\n\n')
+#for k,v in region_spread.items() : 
+#   print(k, '|', (v*100))
+
+# View as a bar graph
 #plt.bar(region_spread.keys(), region_spread.values())
+#plt.title('Greedy Algorithm Results')
+#plt.xlabel('Regions')
+#plt.ylabel('Proportion of Spread in each Region')
 #plt.xticks(region_list, region_list, rotation = 90)
 #plt.margins(0.2)
-#plt.gcf().subplots_adjust(bottom=0.15)
+#plt.gcf().subplots_adjust(bottom = 0.15)
 #plt.tight_layout()
 #plt.show()
 
-#for k,v in region_spread.items() :
-#    print(v, k)
+# Task 2.1 - Implement Maximum Fairness algorithm
 
-# Task 2.1 - Fairness
-
-def max_fair_alloc(G, k, precision = 2, ic_iter = 10) :
+def max_fair(G, k, precision = 4, ic_iter = 500) :
     """
-    Input : Graph, number of seeds, precision of variance and number of Monte-Carlo simulations
-    Output : Maximum fairness seed set, resulting spread, time for each iteration
+    Input : 
+        G - Graph upon which we perform the Greedy algorithm
+            NetworkX Directed Graph object
+        k - The number of seeds required
+            List
+        precision - The precision with which we calculate variance between proportion of people receiving information for each region, 4 by default (i.e. Lowest value for variance is 0.0001), provide a higher value for greater control
+            Integer
+        ic_iter - Number of simulations, 500 by default, provide a higher value for greater accuracy
+            Integer
+    Output : 
+        Maximum fairness seed set
+        Average number of nodes influenced by the seed set for each iteration
+        Time for each iteration
+    Reference :
+        Tsang, A., Wilder, B., Rice, E., Tambe, M., and Zick, Y. 2019. Group-fairness in influence maximization. arXiv preprint arXiv:1903.00967.
+    Link :
+        https://arxiv.org/pdf/1903.00967.pdf
     """
 
     seeds, spread, timelapse, cumulative_variance, start_time = [], [], [], [], time.time()
@@ -208,14 +232,9 @@ def max_fair_alloc(G, k, precision = 2, ic_iter = 10) :
 
         # Extract the best record
         best_record = selected_records.pop(0)
-        print(best_record)
-        print('Seeds :', best_record[0])
         node = best_record[0].pop(-1)
-        print('Added node :', node)
         fair_spread = best_record[1]
-        print('Spread with added node :', fair_spread)
         node_var = best_record[2]
-        print('Variance with added node :', node_var, end = '\n\n')
 
         # Add the selected node to the seed set
         seeds.append(node)
@@ -227,22 +246,33 @@ def max_fair_alloc(G, k, precision = 2, ic_iter = 10) :
 
     return (seeds, spread, timelapse, cumulative_variance)
 
-# Task 2.1 - Compute Fairness algorithm output
+# Task 2.2 - Executing the Maximum Fairness algorithm
 
-fairness_output = max_fair_alloc(G, 25, precision = 4, ic_iter = 500)
+#fairness_output = max_fair(G, 25)
+#print('\nSeeds :', fairness_output[0], '\n')
+#print('\nSpread :', fairness_output[1], '\n')
+#print('\nTimelapse :', fairness_output[2], '\n')
+#print('\nVariance :', fairness_output[3], '\n')
+#print(fairness_output)
 
-print('\nSeeds :', fairness_output[0], '\n')
-print('\nSpread :', fairness_output[1], '\n')
-print('\nTimelapse :', fairness_output[2], '\n')
-print('\nVariance :', fairness_output[3], '\n')
-print(fairness_output)
+# Compute proportion of people receiving information for each region averaged across 500 simulations for your best seed set.
 
-seeds = fairness_output[0]
-mean_spread, region_spread = independent_cascade(G, seeds, ic_iter = 500)
-print(mean_spread)
-plt.bar(region_spread.keys(), region_spread.values())
-plt.xticks(region_list, region_list, rotation = 90)
-plt.margins(0.2)
-plt.gcf().subplots_adjust(bottom=0.15)
-plt.tight_layout()
-plt.show()
+#seeds = [111, 320, 56, 447, 458, 74, 314, 99, 31, 344, 210, 47, 334, 179, 430, 366, 184, 304, 30, 350, 114, 446, 122, 373, 35]
+#mean_spread, region_spread = independent_cascade(G, seeds, ic_iter = 500)
+
+# View in command line
+#print(mean_spread)
+#print('Regions\t| Percentage of people in that region receiving the information', end = '\n\n')
+#for k,v in region_spread.items() : 
+#    print(k, '|', (v*100))
+
+# View as a bar graph
+#plt.bar(region_spread.keys(), region_spread.values())
+#plt.title('Fairness Algorithm Results')
+#plt.xlabel('Regions')
+#plt.ylabel('Proportion of Spread in each Region')
+#plt.xticks(region_list, region_list, rotation = 90)
+#plt.margins(0.2)
+#plt.gcf().subplots_adjust(bottom=0.15)
+#plt.tight_layout()
+#plt.show()
