@@ -1,4 +1,4 @@
-# Network-Analysis
+# Social Network Fairness Analysis
 
 Uses dataset from Wilder et al.[1] pickled.
 
